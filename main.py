@@ -1,9 +1,10 @@
 from robonomicsinterface import RobonomicsInterface, Subscriber, SubEvent
+from playsound import playsound
 from scripts import create_qr
-from PIL import Image
-import threading
+import multiprocessing
 import logging
 import time
+import json
 
 
 logging.basicConfig(
@@ -18,30 +19,38 @@ list_of_devices: list = []
 logging.info("get list of devices")
 list_of_devices = interface.rws_list_devices("4GgRRojuoQwKCZP9wkB69ZxJY4JprmHtpzEzqJLjnqu4jk1r")
 logging.info(f" len is {len(list_of_devices)}")
-logging.info("open image")
-im = Image.open("./qr/qr.png")
-im.show()
 
 
-def callback(data: list) -> None:
-    logging.info(f"get data {data}")
-    create_qr(data[2])
+def callback(datalog: list) -> None:
+    logging.info(f"get data {datalog}")
+    data = datalog[2]
+    data_dict = json.loads(data)
+    if 'blackmirror' in data_dict:
+        create_qr(data_dict['blackmirror'])
+        logging.info("playing a sound")
+        playsound('play.wav')
+    else:
+        logging.info("wrong key")
 
 
 logging.info("create subscriber")
-my_thread = threading.Thread(target=Subscriber, args=(interface, SubEvent.NewRecord, callback, list_of_devices,))
+my_thread = multiprocessing.Process(target=Subscriber, args=(interface, SubEvent.NewRecord, callback, list_of_devices,))
 my_thread.start()
 
 
 while True:
     try:
-        logging.debug("checking list of devices")
-        new_list_devices = interface.rws_list_devices("4GgRRojuoQwKCZP9wkB69ZxJY4JprmHtpzEzqJLjnqu4jk1r")
+        try:
+            logging.debug("checking list of devices")
+            new_list_devices = interface.rws_list_devices("4GgRRojuoQwKCZP9wkB69ZxJY4JprmHtpzEzqJLjnqu4jk1r")
+        except Exception as e:
+            logging.info(f"get error {e}")
+            pass
         time.sleep(10)
         if len(new_list_devices) != len(list_of_devices):
             logging.info(f"update list of devices. new list length is {len(new_list_devices)}.")
-            my_thread.join()
-            my_thread = threading.Thread(target=Subscriber, args=(interface, SubEvent.NewRecord, callback,
+            my_thread.terminate()
+            my_thread = multiprocessing.Process(target=Subscriber, args=(interface, SubEvent.NewRecord, callback,
                                                                   new_list_devices,))
             my_thread.start()
             list_of_devices = new_list_devices
@@ -49,6 +58,5 @@ while True:
             continue
     except KeyboardInterrupt:
         logging.debug("get shutdown signal. Terminating.")
-        my_thread.join()
-        im.close()
+        my_thread.terminate()
         break

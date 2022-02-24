@@ -1,0 +1,13 @@
+[Unit]
+Description=My test service
+After=multi-user.target
+[Service]
+Type=simple
+Restart=always
+RestartSec=10s
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/qr_script/
+ExecStart=/usr/bin/python3 /home/pi/qr_script/main.py
+[Install]
+WantedBy=multi-user.target
