@@ -2,6 +2,7 @@ from robonomicsinterface import RobonomicsInterface, Subscriber, SubEvent
 from playsound import playsound
 from scripts import create_qr
 import multiprocessing
+import websocket
 import logging
 import time
 import json
@@ -47,6 +48,11 @@ while True:
             logging.info(f"get error {e}")
             pass
         time.sleep(10)
+        if not my_thread.is_alive():
+            my_thread = multiprocessing.Process(target=Subscriber,
+                                                args=(interface, SubEvent.NewRecord, callback, list_of_devices,))
+            my_thread.start()
+
         if len(new_list_devices) != len(list_of_devices):
             logging.info(f"update list of devices. new list length is {len(new_list_devices)}.")
             my_thread.terminate()
@@ -59,4 +65,17 @@ while True:
     except KeyboardInterrupt:
         logging.debug("get shutdown signal. Terminating.")
         my_thread.terminate()
+        break
+    except websocket.WebSocketConnectionClosedException as exs:
+        try:
+            logging.debug(f"get error {exs}")
+            my_thread.terminate()
+        except Exception as ex:
+            logging.debug(ex)
+        finally:
+            my_thread = multiprocessing.Process(target=Subscriber,
+                                                args=(interface, SubEvent.NewRecord, callback, list_of_devices,))
+            my_thread.start()
+    except Exception as e:
+        logging.debug(f"global error - {e}")
         break

@@ -1,5 +1,4 @@
-FROM python:3.9-buster
-RUN apt-get update
+FROM python:3.9
 RUN mkdir qr_script
 WORKDIR qr_script
 COPY . .
